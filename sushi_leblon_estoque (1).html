@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sushi Leblon – Contagem de Estoque</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+  .header { background: linear-gradient(135deg, #0d0d0d, #1a1a1a); color: white; padding: 20px 32px; border-bottom: 3px solid #c6a96b; }
+  .header-top { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .header-logo { width: 60px; height: 60px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; border: 2px solid #c6a96b; }
+  .header-logo svg { width: 56px; height: 56px; }
+  .header-brand { font-size: 10px; font-weight: 700; letter-spacing: 4px; color: #c6a96b; text-transform: uppercase; }
+  .header-name { font-size: 26px; font-weight: 800; color: white; line-height: 1.1; letter-spacing: 1px; }
+  .header-sub { font-size: 11px; color: #888; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .header h1 { font-size: 14px; font-weight: 400; color: #888; margin-top: 8px; border-top: 1px solid rgba(198,169,107,0.3); padding-top: 8px; letter-spacing: 0.5px; }
+
+  .start-screen { max-width: 520px; margin: 60px auto; background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+  .start-screen h2 { font-size: 20px; margin-bottom: 24px; color: #1a1a2e; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: #4a5568; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 15px; transition: border-color 0.2s; }
+  .form-group input:focus { outline: none; border-color: #c6a96b; }
+
+  .tab-bar { display: flex; background: white; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+  .tab { flex: 1; padding: 14px; text-align: center; font-weight: 600; font-size: 14px; cursor: pointer; color: #718096; transition: all 0.2s; border-bottom: 3px solid transparent; }
+  .tab.active { color: #8B6914; border-bottom-color: #c6a96b; background: #fdf8ee; }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 20px 16px 100px; }
+
+  .category-block { background: white; border-radius: 12px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+  .category-header { background: linear-gradient(135deg, #1a1a1a, #2d2d2d); color: white; padding: 12px 20px; font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; border-left: 4px solid #c6a96b; }
+  .category-header .toggle { font-size: 18px; color: #c6a96b; }
+  .category-header .count-badge { background: rgba(198,169,107,0.25); border: 1px solid rgba(198,169,107,0.5); border-radius: 20px; padding: 2px 10px; font-size: 12px; color: #c6a96b; }
+
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table thead th { background: #fafaf8; padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #eee; }
+  .items-table tbody tr { border-bottom: 1px solid #f5f5f5; transition: background 0.1s; }
+  .items-table tbody tr:hover { background: #fdf8ee; }
+  .items-table td { padding: 10px 16px; font-size: 14px; }
+  .items-table td.cod { color: #999; font-size: 11px; font-family: monospace; }
+  .items-table td.unid { color: #c6a96b; font-size: 12px; font-weight: 700; }
+  .qty-input { width: 90px; padding: 6px 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; text-align: center; transition: border-color 0.2s; }
+  .qty-input:focus { outline: none; border-color: #c6a96b; background: #fdf8ee; }
+  .qty-input.filled { border-color: #48bb78; background: #f0fff4; }
+
+  .beer-warning { background: #fff8e6; color: #7a5500; border: 1px solid #c6a96b; border-radius: 8px; padding: 10px 16px; margin: 12px 16px; font-size: 13px; font-weight: 600; }
+
+  .sticky-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 2px solid #e2e8f0; padding: 12px 24px; display: flex; gap: 12px; justify-content: center; z-index: 200; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); }
+
+  .btn { padding: 11px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-warning { background: #c05621; color: white; }
+  .btn-warning:hover { background: #9c4221; }
+  .btn-success { background: #276749; color: white; }
+  .btn-success:hover { background: #22543d; }
+  .btn-start { width: 100%; padding: 14px; background: linear-gradient(135deg, #1a1a1a, #333); color: #c6a96b; border: 2px solid #c6a96b; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; letter-spacing: 1px; }
+  .btn-start:hover { background: #c6a96b; color: #1a1a1a; }
+
+  .progress-bar { height: 4px; background: #e2e8f0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #c6a96b, #48bb78); transition: width 0.3s; }
+
+  .info-bar { background: #fdf8ee; padding: 8px 20px; font-size: 13px; color: #7a5500; display: flex; gap: 20px; align-items: center; border-bottom: 1px solid #e8d89a; }
+  .info-bar strong { color: #3d2a00; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { background: white; border-radius: 16px; width: 100%; max-width: 680px; max-height: 85vh; overflow-y: auto; }
+  .modal-header { background: linear-gradient(135deg, #0d0d0d, #1a1a1a); border-bottom: 2px solid #c6a96b; color: white; padding: 20px 24px; border-radius: 16px 16px 0 0; }
+  .modal-header h3 { font-size: 18px; }
+  .modal-header p { font-size: 12px; color: #888; margin-top: 4px; }
+  .modal-body { padding: 20px 24px; }
+  .mirror-text { font-family: monospace; font-size: 13px; white-space: pre-wrap; background: #fafaf8; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; max-height: 300px; overflow-y: auto; line-height: 1.6; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- Start Screen -->
+<div id="startScreen">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="50" fill="#0d0d0d"/>
+          <text x="50" y="45" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#c6a96b" letter-spacing="1">SUSHI</text>
+          <text x="50" y="68" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#c6a96b" letter-spacing="1">LEBLON</text>
+        </svg>
+      </div>
+      <div>
+        
+        <div class="header-name">SUSHI LEBLON</div>
+        <div class="header-sub">Desde 1988 · Rio de Janeiro</div>
+      </div>
+    </div>
+    <h1>📦 Sistema de Contagem de Estoque Mensal</h1>
+  </div>
+  <div class="start-screen">
+    <h2>Iniciar Nova Contagem</h2>
+    <div class="form-group">
+      <label>Nome do Responsável</label>
+      <input type="text" id="responsible" placeholder="Digite seu nome completo" />
+    </div>
+    <div class="form-group">
+      <label>Data da Contagem</label>
+      <input type="date" id="countDate" />
+    </div>
+    <button class="btn-start" onclick="startCount()">INICIAR CONTAGEM →</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="mainApp" class="hidden">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="50" fill="#0d0d0d"/>
+          <text x="50" y="45" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#c6a96b" letter-spacing="1">SUSHI</text>
+          <text x="50" y="68" text-anchor="middle" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#c6a96b" letter-spacing="1">LEBLON</text>
+        </svg>
+      </div>
+      <div>
+        
+        <div class="header-name">SUSHI LEBLON</div>
+        <div class="header-sub">Desde 1988 · Rio de Janeiro</div>
+      </div>
+    </div>
+    <h1>📦 Sistema de Contagem de Estoque Mensal</h1>
+  </div>
+  <div class="info-bar">
+    <span>👤 Responsável: <strong id="infoResp"></strong></span>
+    <span>📅 Data: <strong id="infoDate"></strong></span>
+    <span id="infoProgress" style="margin-left:auto"></span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+  <div class="tab-bar">
+    <div class="tab active" id="tab1" onclick="switchTab(1)">🏪 ESTOQUE</div>
+    <div class="tab" id="tab2" onclick="switchTab(2)">🍶 ESTOQUE BEBIDAS</div>
+  </div>
+
+  <div id="section1" class="content"></div>
+  <div id="section2" class="content hidden"></div>
+
+  <div class="sticky-footer">
+    <button class="btn btn-warning" onclick="clearAll()">🗑 Limpar Tudo</button>
+    <button class="btn btn-success" onclick="enviarContagem()" style="font-size:16px;padding:13px 32px;">📲 ENVIAR</button>
+  </div>
+</div>
+
+<!-- Mirror Modal -->
+<div id="mirrorModal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📋 Espelho da Contagem</h3>
+      <p>Revisão antes de enviar</p>
+    </div>
+    <div class="modal-body">
+      <div class="mirror-text" id="mirrorContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:#e2e8f0;color:#4a5568" onclick="closeMirror()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PHONE = "5521959429920";
+
+const estoqueData = [
+  { cat: "ALIMENTOS AVES E FRANGO", items: [
+    {cod:"6039",name:"FILE DE FRANGO KG",unid:"KG"},
+    {cod:"6041",name:"FOIE GRAS KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS CARNES", items: [
+    {cod:"6043",name:"WAGYU NIPPO TOPSIDE STEAK",unid:"KG"},
+    {cod:"6042",name:"LOMBO SUINO KG",unid:"KG"},
+    {cod:"6979",name:"BACON KG",unid:"KG"},
+    {cod:"6792",name:"BARRIGA SUINA KG",unid:"KG"},
+    {cod:"6788",name:"PONTA DE ALCATRA KG",unid:"KG"},
+    {cod:"6040",name:"FILE MIGNON KG",unid:"KG"},
+    {cod:"6793",name:"RABADA BOVINA KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS SALMAO", items: [
+    {cod:"6318",name:"FILE SALMAO KG",unid:"KG"},
+    {cod:"6318",name:"SKIN SALMAO",unid:"KG"},
+    {cod:"6318",name:"LOMBO SALMAO SASHIMI",unid:"KG"},
+    {cod:"6318",name:"LOMBO SALMAO SUSHI",unid:"KG"},
+    {cod:"6318",name:"SALMAO BATIDO",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS MOLHOS E CONSERVAS", items: [
+    {cod:"",name:"RECHEIO WONTON",unid:"KG"},
+    {cod:"",name:"RECHEIO GUIOZA DE PORCO",unid:"KG"},
+    {cod:"",name:"PORCO EMPANADO TONKATSU",unid:"KG"},
+    {cod:"",name:"PEIXE EMPANADO BAO",unid:"KG"},
+    {cod:"",name:"COSTELA COZIDA MARINADA",unid:"KG"},
+    {cod:"",name:"WONTON",unid:"KG"},
+    {cod:"",name:"KOROKKE",unid:"KG"},
+    {cod:"",name:"KOROKKE - MASSA",unid:"KG"},
+    {cod:"",name:"PURA DE BATATA COM WASABI",unid:"KG"},
+    {cod:"",name:"TATAKI DE MIGNON",unid:"KG"},
+    {cod:"",name:"ROBATA DE LAGOSTIN",unid:"KG"},
+    {cod:"",name:"LURA PORCIONADA",unid:"KG"},
+    {cod:"",name:"MOLHO CURRY NAMORADO",unid:"KG"},
+    {cod:"",name:"KIMCHI",unid:"KG"},
+    {cod:"6706",name:"MOLHO DE PEIXE TIPAROS LT",unid:"LT"},
+    {cod:"6655",name:"SHOYO KIKKOMAN LT",unid:"LT"},
+    {cod:"6265",name:"MOLHO HOISIN LT",unid:"LT"},
+    {cod:"7022",name:"TINTA DE LULA",unid:"CX"},
+    {cod:"6738",name:"TOMATE SECO KG",unid:"LT"},
+    {cod:"7021",name:"PIMENTA DE TABASCO LT",unid:"LT"},
+    {cod:"6739",name:"PIMENTA TOBAN KG",unid:"LT"},
+    {cod:"6993",name:"TEMPERO SHAOSING LT",unid:"LT"},
+    {cod:"6431",name:"SHOYO LIGHT LT",unid:"LT"},
+    {cod:"6383",name:"MILHO EM LATA KG",unid:"KG"},
+    {cod:"6649",name:"MOLHO DE PIMENTA SRIRACHA LT",unid:"LT"},
+    {cod:"6687",name:"MOLHO INGLES TONKATSU LT",unid:"LT"},
+    {cod:"6380",name:"LICHIA EM CALDA UN",unid:"UN"},
+    {cod:"6988",name:"MOLHO BARBECUE KG",unid:"LT"},
+    {cod:"6267",name:"TEMPERO SUSHI LT",unid:"LT"},
+    {cod:"70009",name:"SHOYU ORIENTAL TRADICIONAL AMARELO 5LT",unid:"CX"},
+    {cod:"6713",name:"MOLHO TARE LT",unid:"LT"},
+    {cod:"6387",name:"TAHINE KG",unid:"KG"},
+    {cod:"6432",name:"SHOYO YAMASA LT",unid:"LT"},
+    {cod:"7004",name:"MOLHO SHOYO DE COCO LT",unid:"LT"},
+    {cod:"6264",name:"MOLHO DE OSTRA LT",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS AZEITES OLEOS E VINAGRES", items: [
+    {cod:"6413",name:"AZEITE TRUFADO LT",unid:"LT"},
+    {cod:"6384",name:"OLEO DE COCO LT",unid:"LT"},
+    {cod:"6503",name:"VINAGRE DE MACA LT",unid:"LT"},
+    {cod:"6411",name:"AZEITE EXTRA VIRGEM LT",unid:"LT"},
+    {cod:"6107",name:"SAKE KIRIN COMUM LT",unid:"LT"},
+    {cod:"6481",name:"VINHO TINTO COZINHA 5L GF",unid:"LT"},
+    {cod:"6231",name:"ACETO BALSAMICO LT",unid:"LT"},
+    {cod:"6427",name:"OLEO DE SOJA LT",unid:"LT"},
+    {cod:"6712",name:"VINAGRE TINTO LT",unid:"LT"},
+    {cod:"6499",name:"VINAGRE DE ARROZ LT",unid:"LT"},
+    {cod:"6480",name:"VINHO PORTO ROYAL GF",unid:"LT"},
+    {cod:"7006",name:"OLEO DE GIRASSOL LT",unid:"LT"},
+    {cod:"6492",name:"SK MIRIN LT",unid:"LT"},
+    {cod:"6722",name:"OLEO ALGODAO LT",unid:"LT"},
+    {cod:"6426",name:"OLEO DE GERGELIM LT",unid:"LT"},
+  ]},
+  { cat: "ALIMENTOS ORIENTAL", items: [
+    {cod:"6424",name:"MISSO KG",unid:"KG"},
+    {cod:"6433",name:"SOBORO KG",unid:"KG"},
+    {cod:"6410",name:"UMEBOSHI KG",unid:"KG"},
+    {cod:"6423",name:"KATSUOBUSHI KG",unid:"KG"},
+    {cod:"6691",name:"MAIONESE JAPONESA KG",unid:"KG"},
+    {cod:"6238",name:"PIMENTA SRIRACHA CHILI KG",unid:"KG"},
+    {cod:"6421",name:"HONDASHI KG",unid:"KG"},
+    {cod:"6389",name:"SHISSO UN",unid:"UN"},
+    {cod:"6435",name:"WASSABI KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS TEMPEROS E CONDIMENTOS", items: [
+    {cod:"6997",name:"PASTA DE SOJA KG",unid:"KG"},
+    {cod:"6239",name:"PIMENTA TOGARASHI KG",unid:"KG"},
+    {cod:"6425",name:"MOSTARDA DIJON KG",unid:"KG"},
+    {cod:"6235",name:"PIMENTA BRANCA KG",unid:"KG"},
+    {cod:"6206",name:"PIMENTA DEDO DE MOCA KG",unid:"KG"},
+    {cod:"6508",name:"MOSTARDA EM GRAO KG",unid:"KG"},
+    {cod:"7003",name:"PAPRICA DEFUMADA KG",unid:"KG"},
+    {cod:"6717",name:"CEBOLA EM PO KG",unid:"KG"},
+    {cod:"6980",name:"PASTA DE CAMARAO KG",unid:"KG"},
+    {cod:"6740",name:"PASTA DE PIMENTA KG",unid:"KG"},
+    {cod:"6747",name:"PASTA DE TAMARINDO KG",unid:"KG"},
+    {cod:"6422",name:"KETCHUP LT",unid:"LT"},
+    {cod:"6237",name:"PIMENTA JALAPENO KG",unid:"KG"},
+    {cod:"6236",name:"PIMENTA DO REINO KG",unid:"KG"},
+    {cod:"6495",name:"PASTA DE CURRY AMARELO KG",unid:"KG"},
+    {cod:"6696",name:"PAPRICA DOCE KG",unid:"KG"},
+    {cod:"6434",name:"TEMPERO DE PEIXE KG",unid:"LT"},
+    {cod:"6234",name:"PIMENTA BIQUINHO KG",unid:"KG"},
+    {cod:"6205",name:"PIMENTA DE CHEIRO KG",unid:"KG"},
+    {cod:"6108",name:"CONHAQUE DOMECQ LT",unid:"LT"},
+    {cod:"6716",name:"ALHO EM PO KG",unid:"KG"},
+    {cod:"6233",name:"PAPRICA PICANTE KG",unid:"KG"},
+    {cod:"6271",name:"MOSTARDA AMARELA KG",unid:"UN"},
+  ]},
+  { cat: "ALIMENTOS INSUMOS SECOS", items: [
+    {cod:"6414",name:"CANELA EM PAU KG",unid:"KG"},
+    {cod:"6420",name:"FURIKAKE KG",unid:"KG"},
+    {cod:"6350",name:"ALGA KOMBU KG",unid:"KG"},
+    {cod:"6386",name:"SEMENTE DE GIRASOL KG",unid:"KG"},
+    {cod:"6250",name:"MANTEIGA DE CACAU KG",unid:"KG"},
+    {cod:"6418",name:"FLOCOS DE ARROZ KG",unid:"KG"},
+    {cod:"6385",name:"PO DE CAFE KG",unid:"KG"},
+    {cod:"6488",name:"CORANTE PRETO KG",unid:"LT"},
+    {cod:"6489",name:"CORANTE VERMELHO KG",unid:"KG"},
+    {cod:"6272",name:"MOYASHI KG",unid:"KG"},
+    {cod:"6448",name:"COLORAU KG",unid:"KG"},
+    {cod:"6388",name:"ENDRO ANETO KG",unid:"KG"},
+    {cod:"6391",name:"BOLACHA TARTAR UN",unid:"UN"},
+    {cod:"6447",name:"MISO SHIRU KG",unid:"KG"},
+    {cod:"6428",name:"SAL GROSSO KG",unid:"KG"},
+    {cod:"6119",name:"AMENDOAS FATIADAS KG",unid:"KG"},
+    {cod:"6378",name:"GERGELIM BRANCO KG",unid:"KG"},
+    {cod:"6419",name:"FLOR DE SAL KG",unid:"KG"},
+    {cod:"7010",name:"GLUTAMATO MONOSSODICO KG",unid:"KG"},
+    {cod:"6351",name:"ALGA NORI UN",unid:"UN"},
+    {cod:"6753",name:"COCO RALADO KG",unid:"KG"},
+    {cod:"6415",name:"CHIMICHURRI KG",unid:"KG"},
+    {cod:"6379",name:"GERGELIM PRETO KG",unid:"KG"},
+    {cod:"6698",name:"GELEIA DE PIMENTA KG",unid:"KG"},
+    {cod:"6416",name:"CRAVO KG",unid:"KG"},
+    {cod:"6230",name:"ACAFRAO KG",unid:"KG"},
+    {cod:"6704",name:"GENGIBRE EM PO KG",unid:"KG"},
+    {cod:"6240",name:"QUINOA KG",unid:"KG"},
+    {cod:"6404",name:"BISCOITO ERVILHA C WASSABI KG",unid:"KG"},
+    {cod:"6381",name:"MAIZENA KG",unid:"KG"},
+    {cod:"6487",name:"CORANTE AMARELO KG",unid:"LT"},
+    {cod:"6371",name:"AMENDOIM KG",unid:"KG"},
+    {cod:"6352",name:"ALGA WAKAME KG",unid:"KG"},
+    {cod:"6382",name:"MILHO DE PIPOCA KG",unid:"KG"},
+    {cod:"6429",name:"SAL REFINADO KG",unid:"KG"},
+    {cod:"6374",name:"CASTANHA CAJU CRUA KG",unid:"KG"},
+    {cod:"6651",name:"CURRY KG",unid:"KG"},
+  ]},
+  { cat: "PEIXES", items: [
+    {cod:"6340",name:"VERMELHO CIOBA KG",unid:"KG"},
+    {cod:"6328",name:"PAMPO KG",unid:"KG"},
+    {cod:"6314",name:"CHERNE KG",unid:"KG"},
+    {cod:"6325",name:"OLHETE KG",unid:"KG"},
+    {cod:"6322",name:"MARIMBA KG",unid:"KG"},
+    {cod:"6338",name:"TAINHA KG",unid:"KG"},
+    {cod:"6323",name:"MECA KG",unid:"KG"},
+    {cod:"6327",name:"OLHO DE CAO KG",unid:"KG"},
+    {cod:"6336",name:"SERRA KG",unid:"KG"},
+    {cod:"6330",name:"PESCADA AMARELA KG",unid:"KG"},
+    {cod:"6313",name:"CAVALA KG",unid:"KG"},
+    {cod:"6324",name:"NAMORADO KG",unid:"KG"},
+    {cod:"6333",name:"ROBALO KG",unid:"KG"},
+    {cod:"6326",name:"OLHO DE BOI KG",unid:"KG"},
+    {cod:"6342",name:"XERELETE KG",unid:"KG"},
+    {cod:"6337",name:"SOROROCA KG",unid:"KG"},
+    {cod:"6320",name:"LINGUADO KG",unid:"KG"},
+    {cod:"6339",name:"TILAPIA KG",unid:"KG"},
+    {cod:"6308",name:"BADEJO KG",unid:"KG"},
+    {cod:"6329",name:"PARGO KG",unid:"KG"},
+    {cod:"6316",name:"ENGUIA KG",unid:"KG"},
+    {cod:"6343",name:"YELLOWTAIL BURI JAPONES KG",unid:"KG"},
+    {cod:"6311",name:"BLACK COD EVISC S CAB KG",unid:"KG"},
+    {cod:"6309",name:"BAIACU KG",unid:"KG"},
+    {cod:"6317",name:"FILE CAVALINHA MARINADA KG",unid:"KG"},
+    {cod:"6341",name:"XAREL KG",unid:"KG"},
+    {cod:"6319",name:"HADOCK KG",unid:"KG"},
+    {cod:"6332",name:"PREGO AGULHAO KG",unid:"KG"},
+    {cod:"6331",name:"PINTANGOLA KG",unid:"KG"},
+    {cod:"6321",name:"LIRIO KG",unid:"KG"},
+    {cod:"6335",name:"SARDINHA KG",unid:"KG"},
+    {cod:"6315",name:"DOURADO KG",unid:"KG"},
+    {cod:"6304",name:"ANCHOVA KG",unid:"KG"},
+    {cod:"6310",name:"BIJUPIRA KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS FRUTOS DO MAR", items: [
+    {cod:"6282",name:"OVAS DE MASSAGO BLACK KG",unid:"KG"},
+    {cod:"6676",name:"LULA FRESCA KG",unid:"KG"},
+    {cod:"6291",name:"CAMARAO 11 15 VG UN",unid:"UN"},
+    {cod:"6283",name:"OVAS DE MASSAGO KG",unid:"KG"},
+    {cod:"6296",name:"LULA KG",unid:"KG"},
+    {cod:"6293",name:"CENTOLLA KING KRAB KG",unid:"KG"},
+    {cod:"6506",name:"OURICO KG",unid:"KG"},
+    {cod:"6295",name:"KANI KG",unid:"KG"},
+    {cod:"6299",name:"PATINHA DE CARANGUEIJO KG",unid:"KG"},
+    {cod:"6733",name:"LAGOSTIM KG",unid:"KG"},
+    {cod:"6289",name:"CAMARAO 61 70 KG",unid:"KG"},
+    {cod:"6292",name:"CAMARAO VM 26 30 KG",unid:"KG"},
+    {cod:"6294",name:"IRIKO KG",unid:"KG"},
+    {cod:"6301",name:"SIRI KG",unid:"KG"},
+    {cod:"6496",name:"PEIXE BRANCO KG",unid:"KG"},
+    {cod:"6303",name:"VIEIRAS UN",unid:"UN"},
+    {cod:"6744",name:"MEXILHAO KG",unid:"KG"},
+    {cod:"6284",name:"OVAS DE SALMAO IKURA KG",unid:"KG"},
+    {cod:"6300",name:"POLVO KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS LATICINIOS", items: [
+    {cod:"6273",name:"MAIONESE KG",unid:"KG"},
+    {cod:"6249",name:"LEITE DE COCO LT",unid:"LT"},
+    {cod:"6246",name:"CREME DE LEITE FRESCO LT",unid:"LT"},
+    {cod:"6263",name:"REQUEIJAO BISNAGA KG",unid:"KG"},
+    {cod:"6252",name:"MANTEIGA SEM SAL KG",unid:"KG"},
+    {cod:"7014",name:"CREME DE LEITE PASTEURIZADO KG",unid:"LT"},
+    {cod:"6764",name:"QUEIJO DE CABRA KG",unid:"KG"},
+    {cod:"6260",name:"TOFU KG",unid:"KG"},
+    {cod:"6258",name:"QUEIJO PARMESAO KG",unid:"KG"},
+    {cod:"6244",name:"QUEIJO CATUPIRY KG",unid:"KG"},
+    {cod:"6253",name:"MARGARINA KG",unid:"KG"},
+    {cod:"6245",name:"CREAM CHEESE KG",unid:"KG"},
+    {cod:"6251",name:"MANTEIGA DE TRUFA KG",unid:"KG"},
+    {cod:"6248",name:"LEITE INTEGRAL LT",unid:"LT"},
+    {cod:"6255",name:"QUEIJO BURRATA KG",unid:"KG"},
+    {cod:"6254",name:"QUEIJO MUSSARELA KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS SOBREMESAS", items: [
+    {cod:"6355",name:"BISCOITO DE CANELA UN",unid:"UN"},
+    {cod:"6357",name:"BROWNIE UN",unid:"UN"},
+    {cod:"6366",name:"MOCHI UN",unid:"UN"},
+    {cod:"6711",name:"GELATINA EM FOLHA KG",unid:"UN"},
+    {cod:"6360",name:"CHOCOLATE MEIO AMARGO KG",unid:"KG"},
+    {cod:"6048",name:"TRUFAS DE CHOCOLATE UN",unid:"UN"},
+    {cod:"6752",name:"CHOCOLATE BRANCO KG",unid:"KG"},
+    {cod:"6353",name:"AMENDOCREM KG",unid:"KG"},
+    {cod:"6363",name:"LEITE CONDENSADO KG",unid:"KG"},
+    {cod:"6354",name:"BALA DE COCO UN",unid:"UN"},
+    {cod:"6358",name:"CACAU EM PO KG",unid:"KG"},
+    {cod:"6359",name:"CHOCOLATE MARFIM KG",unid:"KG"},
+    {cod:"6361",name:"DOCE DE LEITE KG",unid:"KG"},
+    {cod:"6356",name:"BISCOITO MARIA KG",unid:"KG"},
+    {cod:"6743",name:"GELATINA EM PO S SABOR",unid:"UN"},
+  ]},
+  { cat: "ALIMENTOS ARROZ E FARINHA", items: [
+    {cod:"6978",name:"FARINHA DE ARROZ KG",unid:"KG"},
+    {cod:"6991",name:"ARROZ BASMATI KG",unid:"KG"},
+    {cod:"6787",name:"FARINHA DE ROSCA KG",unid:"KG"},
+    {cod:"6446",name:"ARROZ JAPONES GOHAN KG",unid:"KG"},
+    {cod:"6376",name:"FERMENTO BIOLOGICO KG",unid:"KG"},
+    {cod:"6407",name:"PAPEL DE ARROZ KG",unid:"KG"},
+    {cod:"6654",name:"FARINHA DE TRIGO PARA PASTEL KG",unid:"KG"},
+    {cod:"7011",name:"FARINHA DE AMENDOA KG",unid:"KG"},
+    {cod:"6493",name:"AMIDO DE MILHO KG",unid:"KG"},
+    {cod:"6377",name:"FERMENTO EM PO KG",unid:"KG"},
+    {cod:"6491",name:"FARINHA DE TRIGO COMUM KG",unid:"KG"},
+    {cod:"6375",name:"FARINHA PANKO KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS SORVETE", items: [
+    {cod:"6047",name:"SORVETE VANILA LT",unid:"LT"},
+    {cod:"6046",name:"SORVETE TAPIOCA LT",unid:"LT"},
+    {cod:"6045",name:"SORVETE QUEIJO LT",unid:"LT"},
+    {cod:"6362",name:"EMUSTAB SELECT KG",unid:"KG"},
+  ]},
+  { cat: "CONGELADOS", items: [
+    {cod:"6051",name:"MORANGO CONGELADO KG",unid:"KG"},
+    {cod:"6405",name:"EDAMAME KG",unid:"KG"},
+    {cod:"6049",name:"AMORA CONGELADA KG",unid:"KG"},
+    {cod:"6050",name:"FRAMBOESA CONGELADA KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS ACUCARES ADOCANTES E MEL", items: [
+    {cod:"6725",name:"ACUCAR GLACUCAR KG",unid:"KG"},
+    {cod:"6741",name:"MEL TRUFADO KG",unid:"KG"},
+    {cod:"6710",name:"ACUCAR DE COCO KG",unid:"KG"},
+    {cod:"6369",name:"ACUCAR GRANULADO KG",unid:"KG"},
+    {cod:"6365",name:"MELADO KG",unid:"KG"},
+    {cod:"6370",name:"ACUCAR MASCAVO KG",unid:"KG"},
+    {cod:"6368",name:"ACUCAR REFINADO KG",unid:"KG"},
+    {cod:"6364",name:"MEL KG",unid:"KG"},
+    {cod:"6367",name:"NESCAU KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS FUNCIONARIOS", items: [
+    {cod:"6440",name:"FEIJAO - FUNCIONARIO",unid:"KG"},{cod:"6735",name:"KIT FIESTA NATAL - FUNCIONARIO",unid:"UN"},{cod:"6063",name:"LINGUICA - FUNCIONARIO",unid:"KG"},{cod:"6058",name:"COSTELA SUINA - FUNCIONARIO",unid:"KG"},{cod:"6053",name:"BUCHO BOVINO DOBRADINHA FUNCIONARIO",unid:"KG"},{cod:"6688",name:"CREME DE LEITE FUNCIONARIOS LT",unid:"KG"},{cod:"6112",name:"COXINHA DA ASA - FUNCIONARIO",unid:"KG"},{cod:"6438",name:"EXTRATO DE TOMATE - FUNCIONARIO",unid:"KG"},{cod:"6765",name:"PORCO A PASSARINHO KG",unid:"KG"},{cod:"6115",name:"FRANGO A PASSARINHO - FUNCIONARIO",unid:"KG"},{cod:"6401",name:"PAO FRANCES KG",unid:"KG"},{cod:"6118",name:"PERU NATAL CESTA BASICA - FUNCIONARIO",unid:"KG"},{cod:"6242",name:"BATATA CONGELADA - FUNCIONARIO",unid:"KG"},{cod:"6243",name:"BATATA PALHA - FUNCIONARIO",unid:"KG"},{cod:"7007",name:"FARINHA DE KIBE KG - FUNCIONARIO",unid:"KG"},{cod:"6117",name:"PEITO DE PERU CONGELADO - FUNCIONARIO",unid:"KG"},{cod:"6241",name:"AZEITONA VERDE KG - FUNCIONARIO",unid:"KG"},{cod:"7533",name:"MUSCULO BOVINO",unid:"KG"},{cod:"6062",name:"LINGUICA TOSCANA PERNIL KG - FUNCIONARIO",unid:"KG"},{cod:"6114",name:"FILE DE FRANGO EMPANADO FUNCIONARIO",unid:"KG"},{cod:"6443",name:"FUBA - FUNCIONARIO",unid:"KG"},{cod:"6445",name:"MACARRAO - FUNCIONARIO",unid:"KG"},{cod:"6055",name:"CARRE - FUNCIONARIO",unid:"KG"},{cod:"6344",name:"FILE DE PEIXE - FUNCIONARIO",unid:"KG"},{cod:"6192",name:"MILHO - FUNCIONARIO",unid:"KG"},{cod:"6052",name:"ALMONDEGAS - FUNCIONARIO",unid:"KG"},{cod:"6110",name:"COXA E SOBRECOXA - FUNCIONARIO",unid:"KG"},{cod:"6111",name:"COXINHA DA ASA DRUMET FUNCIONARIO",unid:"KG"},{cod:"6650",name:"ARROZ PARBOILIZADO - FUNCIONARIOS",unid:"KG"},{cod:"6726",name:"PANETONE UN - FUNCIONARIO",unid:"UN"},{cod:"6444",name:"KETCHUP - FUNCIONARIO",unid:"LT"},{cod:"6056",name:"CORDAO DO MINGON - FUNCIONARIO",unid:"KG"},{cod:"6116",name:"NUGGETS DE FRANGO FUNCIONARIO",unid:"KG"},{cod:"6270",name:"MOLHO DE TOMATE - FUNCIONARIO",unid:"LT"},{cod:"6684",name:"KIT FEIJOADA - FUNCIONARIOS",unid:"KG"},{cod:"6436",name:"CAFE - FUNCIONARIO KG",unid:"KG"},{cod:"6064",name:"SOBREPALETA SUINA - FUNCIONARIO",unid:"KG"},{cod:"6054",name:"CARNE MOIDA - FUNCIONARIO",unid:"KG"},{cod:"7537",name:"MORTADELA KG",unid:"KG"},{cod:"6441",name:"FEIJAO BRANCO FUNCIONARIO",unid:"KG"},{cod:"6113",name:"FILE DE FRANGO - FUNCIONARIO",unid:"KG"},{cod:"7540",name:"PRESUNTO KG",unid:"KG"},{cod:"6442",name:"FLOCAO DE MILHO KG",unid:"KG"},{cod:"6646",name:"PALETA BOVINA - FUNCIONARIO",unid:"KG"},{cod:"6439",name:"FARINHA DE MANDIOCA - FUNCIONARIO",unid:"KG"},{cod:"6061",name:"FILE DE COXA - FUNCIONARIO",unid:"KG"},{cod:"6057",name:"COSTELA BOVINA - FUNCIONARIO",unid:"KG"},{cod:"6437",name:"ERVILHA - FUNCIONARIO",unid:"KG"},{cod:"6262",name:"SALSICHA - FUNCIONARIO",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS ATUM", items: [
+    {cod:"6305",name:"ATUM KG",unid:"KG"},
+    {cod:"6306",name:"ATUM BLU FIN KG",unid:"KG"},
+  ]},
+  { cat: "ALIMENTOS MASSAS", items: [
+    {cod:"6398",name:"MASSA DE GUIOZA UN",unid:"UN"},
+    {cod:"6783",name:"MACARRAO UDON 500G",unid:"KG"},
+    {cod:"6400",name:"MASSA HARUMAKI UN",unid:"UN"},
+    {cod:"6505",name:"MACARRAO HARUSSAME KG",unid:"KG"},
+    {cod:"6393",name:"MACARRAO HIROTANI YAKISSOBA KG",unid:"KG"},
+    {cod:"6399",name:"MASSA DE PASTEL UN",unid:"UN"},
+    {cod:"6390",name:"BIFUM KG",unid:"KG"},
+    {cod:"6784",name:"MACARRAO PARA LAMEN KG",unid:"KG"},
+    {cod:"6402",name:"RAP 10 TORRADA TARTAR KG",unid:"UN"},
+    {cod:"6748",name:"MACARRAO DE ARROZ KG",unid:"KG"},
+    {cod:"6396",name:"MACARRAO SOMEN KG",unid:"KG"},
+    {cod:"6403",name:"TORTILLA DE TRIGO KG",unid:"UN"},
+    {cod:"6981",name:"MACARRAO COM OVO KG",unid:"KG"},
+    {cod:"6395",name:"MACARRAO NISSIN SPAGHETTI KG",unid:"KG"},
+    {cod:"6707",name:"BAO PAO ORIENTAL A VAPOR UN",unid:"UN"},
+  ]},
+  { cat: "ALIMENTOS COGUMELOS", items: [
+    {cod:"6408",name:"SHIMEJI KG",unid:"KG"},
+    {cod:"6697",name:"ERYNGUI KG",unid:"KG"},
+    {cod:"6161",name:"COGUMELO PARIS KG",unid:"UN"},
+    {cod:"6409",name:"SHITAKE KG",unid:"KG"},
+    {cod:"6721",name:"COGUMELO PORTO BELO KG",unid:"UN"},
+  ]},
+  { cat: "ALIMENTOS PROCESSADOS", items: [
+    {cod:"5108",name:"ESPETO DE ASPARGO KG - PROCESSADO",unid:"KG"},
+    {cod:"5107",name:"ESPETO DE CAMARAO KG - PROCESSADO",unid:"KG"},
+    {cod:"5106",name:"ESPETO DE FRANGO KG - PROCESSADO",unid:"KG"},
+    {cod:"5131",name:"ESPETO DE LULA KG - PROCESSADO",unid:"KG"},
+    {cod:"5105",name:"ESPETO DE MIGNON KG - PROCESSADO",unid:"KG"},
+    {cod:"5029",name:"CAMARAO TEMPERADO - PROCESSADO",unid:"KG"},
+    {cod:"5088",name:"CAMARAO 26 30 COZIDO - PROCESSADO",unid:"KG"},
+    {cod:"5202",name:"CAMARAO MARINADO - PROCESSADO",unid:"KG"},
+    {cod:"5001",name:"BLACK COD MARINADO - PROCESSADO",unid:"KG"},
+    {cod:"5012",name:"BLACK CODE - PROCESSADO",unid:"KG"},
+  ]},
+];
+
+const bebidasData = [
+  { cat: "AGUAS", items: [
+    {cod:"6005",name:"AGUA SEM GAS UN"},{cod:"6002",name:"AGUA PANNA UN"},{cod:"6003",name:"AGUA SAN PELEGRINO COM GAS UN"},{cod:"6000",name:"AGUA COM GAS UN"},{cod:"6715",name:"AGUA SAN PELEGRINO 750ML UN"},{cod:"6611",name:"AGUA SEM GAS PET 1.5L UN"},{cod:"6612",name:"AGUA COM GAS PET 1.5L UN"},
+  ]},
+  { cat: "CACHAÇA", items: [
+    {cod:"6037",name:"CACHACA QUINTA LT"},{cod:"6036",name:"CACHACA CANA LT"},
+  ]},
+  { cat: "CAFES E CHES", items: [
+    {cod:"6021",name:"CAFE INDIA NESPRESSO UN"},{cod:"6023",name:"CAFE NESPRESSO ORIGINAL BRASIL UN"},{cod:"6020",name:"CAFE ESPRESSO DESCAFEINADO UN"},{cod:"6022",name:"CAFE NESPRESSO NEPAL UN"},{cod:"6346",name:"CHA DE HIBISCO KG"},{cod:"6012",name:"MATE LIMAO PEPE UN"},{cod:"6348",name:"CHA ERVA MATE NATURAL"},{cod:"6345",name:"CHA BANCHA KG"},{cod:"6014",name:"MATE NATURAL UN"},{cod:"6347",name:"CHA DE JASMIM KG"},{cod:"6349",name:"CHA VERDE KG"},{cod:"6013",name:"MATE NATURAL DIET UN"},{cod:"6719",name:"HIBISCO KG"},{cod:"6011",name:"MATE LIMAO DIET UN"},
+  ]},
+  { cat: "CERVEJAS", items: [
+    {cod:"6750",name:"CERVEJA HEINEKEN ZERO UN"},{cod:"6709",name:"CORONA CERO SUNBREW UN"},{cod:"7017",name:"CERVEJA BLUE MOON UN"},{cod:"6032",name:"CERVEJA SAPPORO LONG NECK UN"},{cod:"7015",name:"CERVEJA HEINEKEN UN"},{cod:"7018",name:"CERVEJA PRAYA UN"},{cod:"6751",name:"STELLA PURE GOLD 330ML UN"},{cod:"7001",name:"CHOPP HEINEKEN LT"},{cod:"6033",name:"CERVEJA STELLA ARTOIS UN"},{cod:"6026",name:"CERVEJA COLORADO LAGER GARRAFA UN"},{cod:"6027",name:"CERVEJA COLORADO LAGER LONG NECK UN"},{cod:"7016",name:"CERVEJA LAGUNITAS UN"},{cod:"6723",name:"CERVEJA BECKS LONGNECK 330ML UN"},{cod:"6028",name:"CERVEJA CORONA LONGNECK UN"},{cod:"6031",name:"CERVEJA PATAGONIA PILSENER LONGNECK UN"},{cod:"7534",name:"PRESSAO 88"},{cod:"7577",name:"PRESSAO 88 ZERO"},
+  ]},
+  { cat: "ESPUMANTES E CHAMPAGNE", items: [
+    {cod:"6472",name:"ESPUMANTE MOET BRUT LT"},{cod:"6778",name:"CHANDON BABY BRUT LT"},{cod:"6473",name:"ESPUMANTE MOET ROSE LT"},{cod:"6471",name:"ESPUMANTE CHANDON ROSE LT"},{cod:"6475",name:"ESPUMANTE ADOLFO LONA BRUT LT"},{cod:"6476",name:"ESPUMANTE JOLIE BRUT LT"},{cod:"6477",name:"ESPUMANTE PARA DRINK LT"},{cod:"7005",name:"ESPUMANTE BEVITTO BRUT 750ML"},
+  ]},
+  { cat: "DESTILADOS GERAIS", items: [
+    {cod:"6782",name:"BRUTAL FRUIT UN"},{cod:"6068",name:"CAMPARI LT"},{cod:"6067",name:"APEROL LT"},{cod:"6773",name:"MARTINI EXTRA DRY 750ML"},{cod:"6075",name:"MARTINI BIANCO LT"},{cod:"6774",name:"TEQUILA JOSE CUERVO 750ML"},{cod:"6777",name:"MARTINI ROSSO LT"},{cod:"6069",name:"COINTREAU LT"},{cod:"6727",name:"LICOR CARAVELLA LIMONCELLO LT"},{cod:"7009",name:"RUM HAVANA CLUB 700ML"},{cod:"6076",name:"VERMOUT CARPANO LT"},{cod:"6074",name:"LICOR FRANGELICO LT"},{cod:"6072",name:"LICOR 43 LT"},
+  ]},
+  { cat: "GIN", items: [
+    {cod:"7000",name:"GIN BOSSA NOVA 700ML"},{cod:"6071",name:"GIN TANQUERAY LT"},{cod:"6786",name:"GIN THE BOTANIST SCOTCH DRY 700ML"},{cod:"6983",name:"GIN BEEFEATER PINK 700ML"},{cod:"6999",name:"GIN BEEFEATER 750ML"},
+  ]},
+  { cat: "REFRIGERANTES", items: [
+    {cod:"6006",name:"COCA COLA LATA UN"},{cod:"6609",name:"GUARANA ZERO 2L UN"},{cod:"6608",name:"GUARANA ANTARTICA PET 2L UN"},{cod:"6019",name:"TONICA ZERO LATA UN"},{cod:"6008",name:"GUARANA LATA UN"},{cod:"6016",name:"RED BULL SUGAR FREE LATA UN"},{cod:"6610",name:"COCA COLA ZERO 2L UN"},{cod:"6708",name:"PEPSI ZERO LATA UN"},{cod:"6737",name:"COCA PET LT"},{cod:"6009",name:"GUARANA ZERO LATA UN"},{cod:"6015",name:"RED BULL LATA UN"},{cod:"6018",name:"TONICA LATA UN"},{cod:"6007",name:"COCA ZERO LATA UN"},{cod:"6998",name:"LIMONETO H20 UN"},{cod:"6989",name:"SUCO DE CRANBERRY LT"},
+  ]},
+  { cat: "SAKES", items: [
+    {cod:"6758",name:"SK AMANOTO DAIGINJYO 720ML"},{cod:"6096",name:"SK HAKUSHIKA NADAJIKOME 1.8LT"},{cod:"6099",name:"SK HAKUSHIKA YAMADANISHIKI 720ML"},{cod:"6785",name:"SK HAK CHO TOKUSEN YAMADANISHIKI 720ML"},{cod:"6090",name:"SK HAKUSHIKA JOSEN 1.8L"},{cod:"6093",name:"SK HAKUSHIKA JOSEN 720LT"},{cod:"6760",name:"SK TAIHEIZAN JUNMAI GINJO 720ML"},{cod:"6755",name:"SK JUNMAI URAKASUMI 720ML"},{cod:"6097",name:"SK HAKUSHIKA NAMACHOZO 300ML"},{cod:"6094",name:"SK HAKUSHIKA JUNMAI GUINJO 300ML"},{cod:"6087",name:"SAKE KIRIN DOURADO LT"},{cod:"6759",name:"SK HAKUSHIKA HANA KOHAKU 720ML"},{cod:"6761",name:"SK TAIHEIZAN KIMOTO 720ML"},{cod:"6757",name:"SK KONISHI HIYASHIBORI 720ML"},{cod:"6724",name:"SK HAKUSHIKA YAMADANISHIKI JUNMAI LT"},{cod:"6762",name:"SK KIKUMASAMUNE SHIBORITATE 1800ML"},{cod:"6763",name:"SK TAKASAGO TAISETSU 300ML"},{cod:"6734",name:"SK HAKUSHIKA KURA PACK LT"},{cod:"6754",name:"SK HONJIKOMI URAKASUMI 720ML"},{cod:"6511",name:"SK HAKUSHIKA JOSEN LATA UN"},{cod:"6756",name:"SK KAZE AKITSUHO 720ML"},
+  ]},
+  { cat: "VINHOS BRANCO", items: [
+    {cod:"7008",name:"VINA ESMERALDA LT"},{cod:"6455",name:"PINOT GRIGIO DELLE VENEZIE LT"},{cod:"6977",name:"TERRESELLA PINOT GRIGIO VENEZIA DOC 750ML"},{cod:"6458",name:"CHARDONNAY BY ROBERT MONDAVI - WOODBRIDE E TWO OAKS LT"},{cod:"6104",name:"AVELEDA LOUREIRO LT"},{cod:"6105",name:"CHABLIS DOMAINE RACE LT"},{cod:"6453",name:"PERA MANCA LT"},{cod:"6660",name:"VINHO BURDIZZO FRASCATI BIANCO 2020 LT"},{cod:"8993",name:"COTES DE PROVENCE"},{cod:"8992",name:"POUILLY FUME"},{cod:"8991",name:"SANCERRE LES BEES DAMES"},
+  ]},
+  { cat: "VINHOS ROSE E TINTO", items: [
+    {cod:"6680",name:"ROSE BORTON E GUESTIER COTES DE PROVENCE LT"},{cod:"6465",name:"PINOT NOIR ROBERT MONDAVI WOODBRIDGE LT"},{cod:"6463",name:"CAPARZO SANGIOVESE LT"},
+  ]},
+  { cat: "VODKAS", items: [
+    {cod:"6771",name:"ABSOLUT CITRON 750ML"},{cod:"6082",name:"VODKA KETEL ONE LT"},{cod:"6078",name:"VODKA ABSOLUT LT"},{cod:"6077",name:"VODKA SMIRNOFF RED LT"},{cod:"6080",name:"VODKA CIROC LT"},{cod:"6081",name:"VODKA KOMAROFF LT"},
+  ]},
+  { cat: "WHISKEYS", items: [
+    {cod:"6645",name:"WHISKY BLUE LABEL LT"},{cod:"6728",name:"WHISKY JAPONES HIBIKI LT"},{cod:"6083",name:"WHISKY BLACK LABEL LT"},{cod:"6770",name:"WHISKY BALLANTINES LT"},{cod:"6085",name:"WHISKY RED LABEL LT"},{cod:"6990",name:"WHISKY JIM BEAM LT"},
+  ]},
+  { cat: "XAROPES E AROMAS", items: [
+    {cod:"6484",name:"XAROPE MANGA LT"},{cod:"6482",name:"ANGOSTURA AROMATIC LT"},{cod:"6795",name:"XAROPE MONIN CURACAO BLUE 700ML"},{cod:"7535",name:"XAROPE MONIN MACA VERDE"},{cod:"6678",name:"XAROPE MONIN MAPLE SPICE LT"},{cod:"6486",name:"AROMA BAUNILHA LT"},{cod:"6985",name:"XAROPE MONIN LICHIA 700ML"},{cod:"6987",name:"XAROPE MONIN MORANGO 700ML"},{cod:"7013",name:"XAROPE MONIN MELANCIA 700ML"},{cod:"6483",name:"XAROPE GENGIBRE LT"},{cod:"6485",name:"XAROPE MONIN CRANBERRY 700ML"},{cod:"6986",name:"XAROPE MONIN MELAO 700ML"},{cod:"6768",name:"LE FRUIT PURE MONIN YUZU LT"},{cod:"6984",name:"XAROPE MONIN FRAMBOESA 700ML"},
+  ]},
+];
+
+// State
+let responsible = '', countDate = '', counts = {}, currentTab = 1;
+
+function startCount() {
+  responsible = document.getElementById('responsible').value.trim();
+  countDate = document.getElementById('countDate').value;
+  if (!responsible || !countDate) { alert('Por favor, preencha o nome do responsável e a data!'); return; }
+  const d = new Date(countDate + 'T00:00:00');
+  document.getElementById('infoResp').textContent = responsible;
+  document.getElementById('infoDate').textContent = d.toLocaleDateString('pt-BR');
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  buildSection('section1', estoqueData, false);
+  buildSection('section2', bebidasData, true);
+  updateProgress();
+}
+
+function buildSection(sectionId, data, isBebidas) {
+  const section = document.getElementById(sectionId);
+  section.innerHTML = '';
+  if (isBebidas) {
+    const warn = document.createElement('div');
+    warn.className = 'beer-warning';
+    warn.innerHTML = '⚠️ <strong>ATENÇÃO:</strong> CONTA GARRAFAS, NÃO CONTE EM LITROS. NÃO ACEITE NÚMERO COM VÍRGULA. Digite apenas números inteiros.';
+    section.appendChild(warn);
+  }
+  data.forEach((cat, ci) => {
+    const block = document.createElement('div');
+    block.className = 'category-block';
+    const hdr = document.createElement('div');
+    hdr.className = 'category-header';
+    hdr.innerHTML = `<span>🍣 ${cat.cat}</span><div style="display:flex;gap:10px;align-items:center"><span class="count-badge" id="badge-${sectionId}-${ci}">0/${cat.items.length}</span><span class="toggle">▲</span></div>`;
+    const body = document.createElement('div');
+    body.id = `catbody-${sectionId}-${ci}`;
+    const table = document.createElement('table');
+    table.className = 'items-table';
+    table.innerHTML = `<thead><tr><th>COD</th><th>PRODUTO</th>${!isBebidas ? '<th>UNID</th>' : ''}<th>QTD</th></tr></thead>`;
+    const tbody = document.createElement('tbody');
+    cat.items.forEach((item, ii) => {
+      const key = `${sectionId}-${ci}-${ii}`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="cod">${item.cod||''}</td><td>${item.name}</td>${!isBebidas ? `<td class="unid">${item.unid||''}</td>` : ''}
+        <td><input class="qty-input" type="number" id="inp-${key}" step="${isBebidas?'1':'0.001'}" min="0" ${isBebidas?'onkeypress="return /[0-9]/.test(String.fromCharCode(event.charCode))"':''} placeholder="0" oninput="onInput('${key}','${sectionId}',${ci},${isBebidas})" /></td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    body.appendChild(table);
+    block.appendChild(hdr);
+    block.appendChild(body);
+    hdr.addEventListener('click', () => {
+      const b = document.getElementById(`catbody-${sectionId}-${ci}`);
+      const tog = hdr.querySelector('.toggle');
+      if (b.style.display === 'none') { b.style.display = ''; tog.textContent = '▲'; }
+      else { b.style.display = 'none'; tog.textContent = '▼'; }
+    });
+    section.appendChild(block);
+  });
+}
+
+function onInput(key, sectionId, ci, isBebidas) {
+  const inp = document.getElementById(`inp-${key}`);
+  let val = inp.value;
+  if (isBebidas) { val = val.replace(/[^0-9]/g, ''); inp.value = val; }
+  counts[key] = val;
+  inp.classList.toggle('filled', val !== '' && parseFloat(val) > 0);
+  const data = sectionId === 'section1' ? estoqueData : bebidasData;
+  let filled = 0;
+  data[ci].items.forEach((_, ii) => { const v = counts[`${sectionId}-${ci}-${ii}`]; if (v && parseFloat(v) > 0) filled++; });
+  const badge = document.getElementById(`badge-${sectionId}-${ci}`);
+  if (badge) badge.textContent = `${filled}/${data[ci].items.length}`;
+  updateProgress();
+}
+
+function updateProgress() {
+  let total = 0, filled = 0;
+  [estoqueData, bebidasData].forEach((data, si) => {
+    const sid = si === 0 ? 'section1' : 'section2';
+    data.forEach((cat, ci) => {
+      cat.items.forEach((_, ii) => {
+        total++;
+        const v = counts[`${sid}-${ci}-${ii}`];
+        if (v && parseFloat(v) > 0) filled++;
+      });
+    });
+  });
+  const pct = total ? Math.round(filled/total*100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('infoProgress').textContent = `${filled}/${total} itens preenchidos (${pct}%)`;
+}
+
+function switchTab(t) {
+  currentTab = t;
+  document.getElementById('tab1').classList.toggle('active', t===1);
+  document.getElementById('tab2').classList.toggle('active', t===2);
+  document.getElementById('section1').classList.toggle('hidden', t!==1);
+  document.getElementById('section2').classList.toggle('hidden', t!==2);
+}
+
+function buildMirrorText() {
+  const d = new Date(countDate + 'T00:00:00');
+  let txt = `ESPELHO DE CONTAGEM DE ESTOQUE\n`;
+  txt += `SUSHI LEBLON\n`;
+  txt += `================================\n`;
+  txt += `Responsavel: ${responsible}\n`;
+  txt += `Data: ${d.toLocaleDateString('pt-BR')}\n`;
+  txt += `================================\n\n`;
+  txt += `=== ESTOQUE ===\n\n`;
+  estoqueData.forEach((cat, ci) => {
+    let catHasItems = false;
+    let catTxt = `[${cat.cat}]\n`;
+    cat.items.forEach((item, ii) => {
+      const v = counts[`section1-${ci}-${ii}`];
+      if (v && parseFloat(v) > 0) { catHasItems = true; catTxt += `  ${item.cod||'-'} | ${item.name} | ${item.unid||''} | ${v}\n`; }
+    });
+    if (catHasItems) txt += catTxt + '\n';
+  });
+  txt += `=== ESTOQUE BEBIDAS ===\n(CONTAGEM EM GARRAFAS)\n\n`;
+  bebidasData.forEach((cat, ci) => {
+    let catHasItems = false;
+    let catTxt = `[${cat.cat}]\n`;
+    cat.items.forEach((item, ii) => {
+      const v = counts[`section2-${ci}-${ii}`];
+      if (v && parseFloat(v) > 0) { catHasItems = true; catTxt += `  ${item.cod||'-'} | ${item.name} | UN | ${v}\n`; }
+    });
+    if (catHasItems) txt += catTxt + '\n';
+  });
+  txt += `================================\nFim da contagem`;
+  return txt;
+}
+
+function enviarContagem() {
+  downloadExcel();
+  setTimeout(() => {
+    const msg = buildMirrorText();
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://api.whatsapp.com/send?phone=${PHONE}&text=${encoded}`, '_blank');
+  }, 800);
+}
+
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+  const estoqueRows = [
+    ['CONTAGEM DE ESTOQUE - SUSHI LEBLON'],
+    ['Responsavel:', responsible, 'Data:', new Date(countDate+'T00:00:00').toLocaleDateString('pt-BR')],
+    [],
+    ['CATEGORIA','COD','PRODUTO','UNIDADE','QUANTIDADE']
+  ];
+  estoqueData.forEach((cat, ci) => {
+    cat.items.forEach((item, ii) => {
+      const v = counts[`section1-${ci}-${ii}`] || '';
+      estoqueRows.push([cat.cat, item.cod||'', item.name, item.unid||'', v !== '' ? parseFloat(v) : '']);
+    });
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(estoqueRows);
+  ws1['!cols'] = [{wch:35},{wch:8},{wch:50},{wch:10},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'ESTOQUE');
+
+  const bebidasRows = [
+    ['CONTAGEM DE ESTOQUE BEBIDAS - SUSHI LEBLON'],
+    ['Responsavel:', responsible, 'Data:', new Date(countDate+'T00:00:00').toLocaleDateString('pt-BR')],
+    ['⚠ CONTAGEM EM GARRAFAS'],
+    [],
+    ['CATEGORIA','COD','PRODUTO','UNIDADE','QUANTIDADE (GARRAFAS)']
+  ];
+  bebidasData.forEach((cat, ci) => {
+    cat.items.forEach((item, ii) => {
+      const v = counts[`section2-${ci}-${ii}`] || '';
+      bebidasRows.push([cat.cat, item.cod||'', item.name, 'UN', v !== '' ? parseInt(v) : '']);
+    });
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(bebidasRows);
+  ws2['!cols'] = [{wch:35},{wch:8},{wch:50},{wch:10},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'ESTOQUE BEBIDAS');
+
+  const dateStr = countDate.replace(/-/g,'');
+  XLSX.writeFile(wb, `Contagem_SushiLeblon_${dateStr}.xlsx`);
+}
+
+function clearAll() {
+  if (!confirm('Deseja limpar TODAS as quantidades preenchidas?')) return;
+  counts = {};
+  document.querySelectorAll('.qty-input').forEach(i => { i.value = ''; i.classList.remove('filled'); });
+  document.querySelectorAll('.count-badge').forEach(b => { const p = b.textContent.split('/'); b.textContent = `0/${p[1]}`; });
+  updateProgress();
+}
+
+function closeMirror() { document.getElementById('mirrorModal').classList.add('hidden'); }
+
+document.getElementById('countDate').valueAsDate = new Date();
+</script>
+</body>
+</html>
